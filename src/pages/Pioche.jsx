@@ -3,11 +3,9 @@ import { supabase } from '../lib/supabase'
 import CardModal from '../components/CardModal'
 
 export default function Pioche({ user }) {
-  // "loading" : vrai pendant qu'on attend la réponse de Supabase
-  const [loading, setLoading]   = useState(false)
-  const [result, setResult]     = useState(null)   // résultat du pull_card
-  const [error, setError]       = useState(null)
-  // "selectedCard" : la carte à afficher dans le modal (null = modal fermé)
+  const [loading, setLoading]           = useState(false)
+  const [result, setResult]             = useState(null)
+  const [error, setError]               = useState(null)
   const [selectedCard, setSelectedCard] = useState(null)
 
   async function handlePull() {
@@ -15,22 +13,40 @@ export default function Pioche({ user }) {
     setError(null)
     setResult(null)
 
-    // supabase.rpc() appelle une fonction Postgres — identique au Python
+    // Étape 1 : appel de la fonction Supabase
+    // Elle retourne maintenant { success, card_id, already_owned, remaining_pulls }
     const { data, error } = await supabase.rpc('pull_card')
 
+    if (error)         { setLoading(false); return setError(error.message) }
+    if (!data.success) { setLoading(false); return setError('Limite quotidienne atteinte.') }
+
+    // Étape 2 : on récupère les détails de la carte avec le card_id reçu
+    // L'ancienne fonction renvoyait l'objet carte directement,
+    // la nouvelle ne renvoie que l'id → on fait une requête séparée.
+    const { data: cardData, error: cardError } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('card_id', data.card_id)
+      .single()   // .single() retourne un objet au lieu d'un tableau
+
+    if (cardError) { setLoading(false); return setError(cardError.message) }
+
+    // Étape 3 : on construit l'URL publique de l'image
+    const card = {
+      ...cardData,
+      img_url: supabase.storage
+        .from('Skyline')
+        .getPublicUrl(cardData.image)
+        .data.publicUrl
+        .replace('/cards', ''),
+    }
+
+    setResult({
+      card,
+      already_owned:   data.already_owned,
+      remaining_pulls: data.remaining_pulls,
+    })
     setLoading(false)
-    if (error) return setError(error.message)
-    if (!data.success) return setError("Vous avez épuisé votre quota pour aujourd'hui ! Revenez demain pour piocher de nouvelles cartes.")
-
-    // On enrichit l'objet carte avec l'URL publique de l'image
-    const card = data.card
-    card.img_url = supabase.storage
-      .from('Skyline')
-      .getPublicUrl(card.image)
-      .data.publicUrl
-      .replace('/cards', '')
-
-    setResult({ card, already_owned: data.already_owned })
   }
 
   if (!user) return <p style={styles.info}>Connectez-vous pour piocher.</p>
@@ -38,7 +54,7 @@ export default function Pioche({ user }) {
   return (
     <div>
       <button
-        style={{...styles.btn, ...(loading ? styles.btnDisabled : {})}}
+        style={{ ...styles.btn, ...(loading ? styles.btnDisabled : {}) }}
         onClick={handlePull}
         disabled={loading}
       >
@@ -49,15 +65,18 @@ export default function Pioche({ user }) {
 
       {result && (
         <div style={styles.resultWrap}>
-          {result.already_owned
-            ? <p style={styles.warn}>⚠ Doublon</p>
-            : <p style={styles.success}>✦ Nouvelle carte !</p>
-          }
-          {/* La carte tirée s'affiche comme une vignette cliquable */}
-          <div
-            style={styles.thumb}
-            onClick={() => setSelectedCard(result.card)}
-          >
+          <div style={styles.statusRow}>
+            {result.already_owned
+              ? <p style={styles.warn}>⚠ Doublon</p>
+              : <p style={styles.success}>✦ Nouvelle carte !</p>
+            }
+            {/* On affiche les pulls restants grâce au nouveau champ */}
+            <p style={styles.remaining}>
+              {result.remaining_pulls} pioche{result.remaining_pulls > 1 ? 's' : ''} restante{result.remaining_pulls > 1 ? 's' : ''} aujourd'hui
+            </p>
+          </div>
+
+          <div style={styles.thumb} onClick={() => setSelectedCard(result.card)}>
             <div style={styles.imgWrap}>
               <img src={result.card.img_url} alt={result.card.name} style={styles.img} />
             </div>
@@ -68,8 +87,6 @@ export default function Pioche({ user }) {
         </div>
       )}
 
-      {/* Le modal s'ouvre si selectedCard est non-null.
-          onClose remet selectedCard à null → le modal disparaît. */}
       <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
     </div>
   )
@@ -84,17 +101,21 @@ const styles = {
   btnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
   info:    { color: '#888' },
   error:   { color: '#f66', marginBottom: 16 },
-  warn:    { color: '#fa0', marginBottom: 12, fontWeight: 600 },
-  success: { color: '#6f6', marginBottom: 12, fontWeight: 600 },
+  warn:    { color: '#fa0', marginBottom: 4, fontWeight: 600 },
+  success: { color: '#6f6', marginBottom: 4, fontWeight: 600 },
+  remaining: { color: '#555', fontSize: '0.8rem', marginBottom: 16 },
+  statusRow: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start' },
   resultWrap: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start' },
   thumb: {
     width: 220, background: '#111', borderRadius: 14,
     padding: 8, cursor: 'pointer',
   },
-  imgWrap: { width: '100%', aspectRatio: '2/3', overflow: 'hidden',
-             borderRadius: 10, background: '#222' },
-  img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-  name: { color: '#fff', fontSize: '0.9rem', fontWeight: 600, marginTop: 8 },
+  imgWrap: {
+    width: '100%', aspectRatio: '2/3', overflow: 'hidden',
+    borderRadius: 10, background: '#222',
+  },
+  img:    { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  name:   { color: '#fff', fontSize: '0.9rem', fontWeight: 600, marginTop: 8 },
   rarity: { color: '#666', fontSize: '0.75rem', marginTop: 2 },
-  hint: { color: '#444', fontSize: '0.7rem', marginTop: 6, fontStyle: 'italic' },
+  hint:   { color: '#444', fontSize: '0.7rem', marginTop: 6, fontStyle: 'italic' },
 }
