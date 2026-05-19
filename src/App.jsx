@@ -3,7 +3,7 @@ import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import Pioche from './pages/Pioche'
 import Bibliotheque from './pages/Bibliotheque'
-import Skymap from './pages/Skymap'   // ← nouveau
+import Skymap from './pages/Skymap'
 
 // Les pages de l'app — on les déclare ici pour pouvoir itérer dessus
 const PAGES = [
