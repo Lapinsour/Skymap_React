@@ -296,7 +296,7 @@ export default function Pioche({ user }) {
 
     if (rpcError || !data?.success) {
       setAnimState(STATE.IDLE)
-      return setError(rpcError?.message || 'Limite quotidienne atteinte.')
+      return setError(rpcError?.message || 'Revenez demain pour piocher de nouvelles cartes !')
     }
 
     const { data: cardData } = await supabase
