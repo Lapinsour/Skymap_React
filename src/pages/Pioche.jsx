@@ -20,7 +20,7 @@ export default function Pioche({ user }) {
 
     setLoading(false)
     if (error) return setError(error.message)
-    if (!data.success) return setError('Limite quotidienne atteinte.')
+    if (!data.success) return setError("Vous avez épuisé votre quota pour aujourd'hui ! Revenez demain pour piocher de nouvelles cartes.")
 
     // On enrichit l'objet carte avec l'URL publique de l'image
     const card = data.card
