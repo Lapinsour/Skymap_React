@@ -21,13 +21,18 @@ export default function Bibliotheque({ user }) {
     setLoading(true)
 
     // 1. Récupérer les IDs des cartes possédées
+      
     const { data: userCards } = await supabase
       .from('user_cards')
-      .select('card_id')
+      .select('card_id, is_shiny')
       .eq('user_id', user.id)
-
+    
     const cardIds = (userCards || []).map(uc => uc.card_id)
-
+    
+    // Créer un Map pour accéder rapidement à is_shiny par card_id
+    const shinyMap = Object.fromEntries(
+      (userCards || []).map(uc => [uc.card_id, uc.is_shiny])
+    )
     if (cardIds.length === 0) {
       setCards([])
       setCommonCount(0)
@@ -49,7 +54,8 @@ export default function Bibliotheque({ user }) {
     const nonCommon = allCards
       .filter(c => c.rarity?.toLowerCase() !== 'common')
       .map(c => ({
-        ...c,  // "spread" : copie toutes les propriétés de c
+        ...c,
+        is_shiny: shinyMap[c.card_id] ?? false,  // ← injecté ici
         img_url: supabase.storage
           .from('Skyline')
           .getPublicUrl(c.image)
