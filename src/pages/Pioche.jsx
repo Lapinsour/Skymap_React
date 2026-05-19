@@ -18,7 +18,7 @@ export default function Pioche({ user }) {
     const { data, error } = await supabase.rpc('pull_card')
 
     if (error)         { setLoading(false); return setError(error.message) }
-    if (!data.success) { setLoading(false); return setError('Limite quotidienne atteinte.') }
+    if (!data.success) { setLoading(false); return setError('Revenez demain pour piocher de nouvelles cartes !') }
 
     // Étape 2 : on récupère les détails de la carte avec le card_id reçu
     // L'ancienne fonction renvoyait l'objet carte directement,
