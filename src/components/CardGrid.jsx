@@ -73,3 +73,31 @@ function ShinyOverlay() {
     }} />
   )
 }
+const styles = {
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+    gap: 14,
+  },
+  thumb: {
+    background: '#111',
+    borderRadius: 14,
+    padding: 8,
+    cursor: 'pointer',
+    transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+  },
+  imgWrap: {
+    width: '100%',
+    aspectRatio: '2/3',
+    overflow: 'hidden',
+    borderRadius: 10,
+    background: '#222',
+  },
+  img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  name: {
+    color: '#fff', fontSize: '0.78rem', fontWeight: 600,
+    marginTop: 6, marginBottom: 0,
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+  },
+  rarity: { color: '#666', fontSize: '0.68rem', marginTop: 2 },
+}
