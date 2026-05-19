@@ -1,34 +1,32 @@
-// App.jsx est le composant racine : il contient le layout global
-// (sidebar + zone de contenu) et gère l'état de l'utilisateur connecté.
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import Pioche from './pages/Pioche'
 import Bibliotheque from './pages/Bibliotheque'
+import Skymap from './pages/Skymap'   // ← nouveau
+
+// Les pages de l'app — on les déclare ici pour pouvoir itérer dessus
+const PAGES = [
+  { id: 'Pioche',       label: '🎴 Pioche' },
+  { id: 'Bibliotheque', label: '📚 Bibliothèque' },
+  { id: 'Skymap',       label: '🌌 Skymap' },   // ← nouveau
+]
 
 export default function App() {
-  // "page" contrôle quelle page est affichée (pas besoin de react-router pour si peu de pages)
   const [page, setPage] = useState('Pioche')
   const [user, setUser] = useState(null)
 
-  // Au démarrage, on vérifie si une session Supabase existe déjà
-  // (l'utilisateur avait peut-être fermé le navigateur sans se déconnecter)
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null)
     })
-
-    // onAuthStateChange : Supabase nous notifie automatiquement
-    // quand l'état de connexion change (login, logout, expiration de token).
-    // C'est l'équivalent du "restore session" de Streamlit mais en temps réel.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
-
-    // La fonction retournée par useEffect est appelée au "démontage" du composant.
-    // On retire l'écouteur pour éviter les fuites mémoire.
     return () => listener.subscription.unsubscribe()
-  }, [])  // [] = exécuté une seule fois au montage (comme un __init__)
+  }, [])
+
+  const currentPage = PAGES.find(p => p.id === page)
 
   return (
     <div style={styles.appLayout}>
@@ -36,40 +34,33 @@ export default function App() {
       <aside style={styles.sidebar}>
         <h1 style={styles.logo}>✦ Skymap</h1>
 
-        {/* Navigation */}
         <nav style={styles.nav}>
-          {['Pioche', 'Bibliothèque'].map(p => (
+          {PAGES.map(p => (
             <button
-              key={p}
+              key={p.id}
               style={{
                 ...styles.navBtn,
-                // Ternaire JS : condition ? siVrai : siFaux
-                // Équivalent Python : styles.navBtnActive if page === p else {}
-                ...(page === p.replace('è', 'e') || (p === 'Bibliothèque' && page === 'Bibliotheque')
-                  ? styles.navBtnActive : {})
+                ...(page === p.id ? styles.navBtnActive : {}),
               }}
-              onClick={() => setPage(p === 'Bibliothèque' ? 'Bibliotheque' : p)}
+              onClick={() => setPage(p.id)}
             >
-              {p === 'Pioche' ? '🎴 ' : '📚 '}{p}
+              {p.label}
             </button>
           ))}
         </nav>
 
         <div style={styles.divider} />
 
-        {/* Auth : on passe user et la fonction de mise à jour */}
         <Auth user={user} onAuthChange={setUser} />
       </aside>
 
       {/* ===== CONTENU PRINCIPAL ===== */}
       <main style={styles.main}>
-        <h2 style={styles.pageTitle}>{page === 'Pioche' ? '🎴 Pioche' : '📚 Bibliothèque'}</h2>
+        <h2 style={styles.pageTitle}>{currentPage?.label}</h2>
 
-        {/* Rendu conditionnel : affiche la page correspondante */}
-        {page === 'Pioche'
-          ? <Pioche user={user} />
-          : <Bibliotheque user={user} />
-        }
+        {page === 'Pioche'       && <Pioche       user={user} />}
+        {page === 'Bibliotheque' && <Bibliotheque user={user} />}
+        {page === 'Skymap'       && <Skymap       user={user} />}
       </main>
     </div>
   )
